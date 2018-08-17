@@ -105,7 +105,7 @@ int MP1Node::initThisNode(Address *joinaddr) {
     // node is up!
 	memberNode->nnb = 0;
 	memberNode->heartbeat = 0;
-	memberNode->pingCounter = TFAIL;
+	memberNode->pingCounter = TGOSSIP;
 	memberNode->timeOutCounter = -1;
     initMemberListTable(memberNode);
 
@@ -160,9 +160,10 @@ int MP1Node::introduceSelfToGroup(Address *joinaddr) {
  * DESCRIPTION: Wind up this node and clean up state
  */
 int MP1Node::finishUpThisNode(){
-   /*
-    * Your code goes here
-    */
+   memberNode->inGroup = false;
+   memberNode->nnb = 0;
+   memberNode->memberList.clear();
+   memberNode->heartbeat = 0;
 }
 
 /**
@@ -215,9 +216,28 @@ void MP1Node::checkMessages() {
  * DESCRIPTION: Message handler for different message types
  */
 bool MP1Node::recvCallBack(void *env, char *data, int size ) {
-	/*
-	 * Your code goes here
-	 */
+
+    bool processed = false;
+    MessageHdr msgHdr;
+    memcpy(&msgHdr, data, sizeof(MessageHdr));
+    
+    char * dataWithoutHdr = data + sizeof(MessageHdr);
+
+    switch(msgHdr.msgType){
+        case JOINREQ:
+            processed = processJoinReq(dataWithoutHdr);
+            break;
+        case JOINREP:
+            processed = processJoinRep(dataWithoutHdr);
+            break;
+        case GOSSIP:
+            processed = processGossip(dataWithoutHdr);
+            break;
+        default:
+            break;
+    }
+    return processed;
+    
 }
 
 /**
@@ -228,11 +248,21 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
  * 				Propagate your membership list
  */
 void MP1Node::nodeLoopOps() {
-
-	/*
-	 * Your code goes here
-	 */
-
+    
+    // if ping counter expires
+    // then gossip your list to others
+    if(memberNode->pingCounter == 0 ){
+        memberNode->heartbeat++;
+        memberNode->memberList[0].heartbeat++;
+        gossip();
+        memberNode->pingCounter = TGOSSIP;
+    }
+    // otherwise continue until counter expires
+    else{
+        memberNode->pingCounter--;
+    }
+    // check for failed nodes in membership list
+    checkForFailures();
     return;
 }
 
@@ -267,6 +297,7 @@ Address MP1Node::getJoinAddress() {
  */
 void MP1Node::initMemberListTable(Member *memberNode) {
 	memberNode->memberList.clear();
+    updateMembershipList(memberNode->addr, memberNode->heartbeat);
 }
 
 /**
