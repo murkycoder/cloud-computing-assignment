@@ -279,3 +279,45 @@ void MP1Node::printAddress(Address *addr)
     printf("%d.%d.%d.%d:%d \n",  addr->addr[0],addr->addr[1],addr->addr[2],
                                                        addr->addr[3], *(short*)&addr->addr[4]) ;    
 }
+/**
+ * FUNCTION NAME: processJoinReq
+ *
+ * DESCRIPTION: 
+ */
+bool processJoinReq(char * data);
+/**
+ * FUNCTION NAME: processJoinRep
+ *
+ * DESCRIPTION: 
+ */
+bool processJoinRep(char * data);
+/**
+ * FUNCTION NAME: processGossip
+ *
+ * DESCRIPTION: 
+ */
+bool processGossip(char * data);
+/**
+ * FUNCTION NAME: gossip
+ *
+ * DESCRIPTION: 
+ */
+bool gossip();
+/**
+ * FUNCTION NAME: updateMembershipList
+ *
+ * DESCRIPTION: 
+ */
+bool updateMembershipList(Address addr, long heartbeat);
+/**
+ * FUNCTION NAME: checkForFailures
+ *
+ * DESCRIPTION: 
+ */
+void checkForFailures();
+/**
+ * FUNCTION NAME: printMembershipList
+ *
+ * DESCRIPTION: 
+ */
+void printMembershipList();
