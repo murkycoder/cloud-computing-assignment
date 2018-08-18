@@ -423,5 +423,11 @@ void MP1Node::checkForFailures(){
  * DESCRIPTION: 
  */
 void MP1Node::printMembershipList(){
-    
+    printf("[ %d ] Member list\n");
+    for(auto it = memberNode->memberList.begin();
+        it != memberNode->memberList.end();
+        it++){
+            printf("\t%d:%d\t%ld\t%d\n", it->id, it->port, it->heartbeat, it->timestamp);
+    }
+    printf("\n");
 }
