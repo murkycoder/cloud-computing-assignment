@@ -316,7 +316,30 @@ void MP1Node::printAddress(Address *addr)
  * DESCRIPTION: 
  */
 bool MP1Node::processJoinReq(char * data){
+    Address addr;
+    memcpy(&(addr.addr), data, sizeof(Address));
+    long heartbeat;
+    memcpy(&heartbeat, (data + sizeof(addr)), sizeof(Address));
+    updateMembershipList(addr, heartbeat);
 
+    size_t msgSize = sizeof(MessageHdr) + sizeof(Address) + sizeof(heartbeat);
+    char * msg = (char *)malloc(msgSize);
+    MessageHdr * msgHdr = (MessageHdr*)msg;
+    msgHdr->msgType = JOINREP;
+    memcpy(msg + sizeof(MessageHdr), &(memberNode->addr), sizeof(Address));
+    memcpy(msg + sizeof(Address) + sizeof(MessageHdr), &(memberNode->heartbeat), sizeof(long));
+
+    emulNet->ENsend(
+        &(memberNode->addr), 
+        &addr,
+        msg,
+        msgSize
+    );
+
+    msgHdr = NULL;
+    free(msg);
+
+    return true;
 }
 /**
  * FUNCTION NAME: processJoinRep
@@ -324,7 +347,16 @@ bool MP1Node::processJoinReq(char * data){
  * DESCRIPTION: 
  */
 bool MP1Node::processJoinRep(char * data){
+    
+    memberNode->inGroup = true;
+    
+    Address addr;
+    memcpy(&(addr.addr), data, sizeof(Address));
+    long heartbeat;
+    memcpy(&heartbeat, (data + sizeof(addr)), sizeof(Address));
+    updateMembershipList(addr, heartbeat);
 
+     return true;
 }
 /**
  * FUNCTION NAME: processGossip
@@ -332,7 +364,19 @@ bool MP1Node::processJoinRep(char * data){
  * DESCRIPTION: 
  */
 bool MP1Node::processGossip(char * data){
-
+    int listSize;
+    memcpy(&listSize, data, sizeof(int));
+    size_t offset = sizeof(int);
+    for(int i = 0; i < listSize; i++){
+        Address addr;
+        long heartbeat;
+        memcpy(&addr, data + offset, sizeof(Address));
+        offset += sizeof(Address);
+        memcpy(&heartbeat, data + offset, sizeof(long));
+        offset += sizeof(long);
+        updateMembershipList(addr, heartbeat);
+    }
+    return true;
 }
 /**
  * FUNCTION NAME: gossip
@@ -340,7 +384,32 @@ bool MP1Node::processGossip(char * data){
  * DESCRIPTION: 
  */
 bool MP1Node::gossip(){
-
+    size_t msgSize = sizeof(MessageHdr) + sizeof(int) +
+                     memberNode->memberList.size()*(sizeof(Address) + sizeof(long));
+    char * msg = (char *)malloc(msgSize);
+    MessageHdr * msgHdr = (MessageHdr*)msg;
+    msgHdr->msgType = GOSSIP;
+    size_t offset = sizeof(MessageHdr);
+    for( auto it = memberNode->memberList.begin();
+        it != memberNode->memberList.end(); it++){
+            memcpy(msg + offset, &(it->id), sizeof(int));
+            offset += sizeof(int);
+            memcpy(msg + offset, &(it->port), sizeof(short));
+            offset += sizeof(short);
+            memcpy(msg + offset, &(it->heartbeat), sizeof(long));
+            offset += sizeof(long);
+    }
+    for( auto it = memberNode->memberList.begin();
+        it != memberNode->memberList.end(); it++){
+            Address addr;
+            memcpy(&(addr.addr[0]), &(it->id), sizeof(int));
+            memcpy(&(addr.addr[4]), &(it->port), sizeof(short));
+            emulNet->ENsend(&(memberNode->addr), &addr, msg, msgSize);
+    }
+    msgHdr = NULL;
+    free(msg);
+    return true;
+        
 }
 /**
  * FUNCTION NAME: updateMembershipList
