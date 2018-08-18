@@ -398,7 +398,24 @@ bool MP1Node::updateMembershipList(Address addr, long heartbeat){
  * DESCRIPTION: 
  */
 void MP1Node::checkForFailures(){
-
+    for(auto it = memberNode->memberList.begin();
+        it != memberNode->memberList.end();
+        ){
+            if(par->getcurrtime() - it->timestamp > TREMOVE){
+                #ifdef DEBUGLOG
+                    Address addr;
+                    memcpy(&(addr.addr[0]), &(it->id), sizeof(int));
+                    memcpy(&(addr.addr[4]), &(it->port), sizeof(short));
+                    log->logNodeRemove(&memberNode->addr, &addr);
+                #endif
+                it = memberNode->memberList.erase(it);
+            } else {
+                if(par->getcurrtime() - it->timestamp > TFAIL){
+                    it->setheartbeat(-1);
+                }
+                it++;
+            }
+    }
 }
 /**
  * FUNCTION NAME: printMembershipList
