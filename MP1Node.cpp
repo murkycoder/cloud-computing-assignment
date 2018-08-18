@@ -248,12 +248,12 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
  * 				Propagate your membership list
  */
 void MP1Node::nodeLoopOps() {
-    
     // if ping counter expires
     // then gossip your list to others
     if(memberNode->pingCounter == 0 ){
         memberNode->heartbeat++;
         memberNode->memberList[0].heartbeat++;
+        memberNode->memberList[0].timestamp = par->getcurrtime();
         gossip();
         memberNode->pingCounter = TGOSSIP;
     }
@@ -261,6 +261,7 @@ void MP1Node::nodeLoopOps() {
     else{
         memberNode->pingCounter--;
     }
+
     // check for failed nodes in membership list
     checkForFailures();
     return;
@@ -319,7 +320,7 @@ bool MP1Node::processJoinReq(char * data){
     Address addr;
     memcpy(&(addr.addr), data, sizeof(Address));
     long heartbeat;
-    memcpy(&heartbeat, (data + sizeof(addr)), sizeof(Address));
+    memcpy(&heartbeat, (data + sizeof(Address)), sizeof(long));
     updateMembershipList(addr, heartbeat);
 
     size_t msgSize = sizeof(MessageHdr) + sizeof(Address) + sizeof(heartbeat);
@@ -347,13 +348,12 @@ bool MP1Node::processJoinReq(char * data){
  * DESCRIPTION: 
  */
 bool MP1Node::processJoinRep(char * data){
-    
+
     memberNode->inGroup = true;
-    
     Address addr;
     memcpy(&(addr.addr), data, sizeof(Address));
     long heartbeat;
-    memcpy(&heartbeat, (data + sizeof(addr)), sizeof(Address));
+    memcpy(&heartbeat, (data + sizeof(Address)), sizeof(long));
     updateMembershipList(addr, heartbeat);
 
      return true;
@@ -368,12 +368,20 @@ bool MP1Node::processGossip(char * data){
     memcpy(&listSize, data, sizeof(int));
     size_t offset = sizeof(int);
     for(int i = 0; i < listSize; i++){
-        Address addr;
+        //Address addr;
+        int id;
+        short port;
         long heartbeat;
-        memcpy(&addr, data + offset, sizeof(Address));
-        offset += sizeof(Address);
+        memcpy(&id, data + offset, sizeof(int));
+        offset += sizeof(int);
+        memcpy(&port, data + offset, sizeof(short));
+        offset += sizeof(short);
         memcpy(&heartbeat, data + offset, sizeof(long));
         offset += sizeof(long);
+        Address addr;
+        memcpy(&(addr.addr[0]), &id, sizeof(int));
+        memcpy(&(addr.addr[4]), &port, sizeof(short));
+            
         updateMembershipList(addr, heartbeat);
     }
     return true;
@@ -384,20 +392,27 @@ bool MP1Node::processGossip(char * data){
  * DESCRIPTION: 
  */
 bool MP1Node::gossip(){
+    int timestamp = par->getcurrtime();
+    int listSize = countNonFaulty(timestamp);
+    
     size_t msgSize = sizeof(MessageHdr) + sizeof(int) +
-                     memberNode->memberList.size()*(sizeof(Address) + sizeof(long));
+                     listSize*(sizeof(Address) + sizeof(long));
     char * msg = (char *)malloc(msgSize);
     MessageHdr * msgHdr = (MessageHdr*)msg;
     msgHdr->msgType = GOSSIP;
     size_t offset = sizeof(MessageHdr);
+    memcpy(msg + offset, &listSize, sizeof(int));
+    offset += sizeof(int);
     for( auto it = memberNode->memberList.begin();
         it != memberNode->memberList.end(); it++){
-            memcpy(msg + offset, &(it->id), sizeof(int));
-            offset += sizeof(int);
-            memcpy(msg + offset, &(it->port), sizeof(short));
-            offset += sizeof(short);
-            memcpy(msg + offset, &(it->heartbeat), sizeof(long));
-            offset += sizeof(long);
+            if( timestamp - it->timestamp < TFAIL){
+                memcpy(msg + offset, &(it->id), sizeof(int));
+                offset += sizeof(int);
+                memcpy(msg + offset, &(it->port), sizeof(short));
+                offset += sizeof(short);
+                memcpy(msg + offset, &(it->heartbeat), sizeof(long));
+                offset += sizeof(long);
+        }
     }
     for( auto it = memberNode->memberList.begin();
         it != memberNode->memberList.end(); it++){
@@ -415,13 +430,13 @@ bool MP1Node::gossip(){
  * FUNCTION NAME: updateMembershipList
  *
  * DESCRIPTION: update / add entry in the membership list 
- *              for received entries that have been marked as failed,
- *              mark it as failed in your table as well
+ *              
  *             
  * RETURN: return true if modification made
  *                false otherwise
  */
 bool MP1Node::updateMembershipList(Address addr, long heartbeat){
+    printMembershipList();
     for( auto it = memberNode->memberList.begin();
         it != memberNode->memberList.end(); it++){
             int id;
@@ -429,15 +444,7 @@ bool MP1Node::updateMembershipList(Address addr, long heartbeat){
             memcpy(&id, &(addr.addr[0]), sizeof(int));
             memcpy(&port, &(addr.addr[4]), sizeof(short));
             if(id == it->id && port == it->port) {
-                if(heartbeat == -1){
-                    // mark as failed in my own list
-                    it->setheartbeat(-1);
-                }
-                if(it->heartbeat == -1){
-                    // if my own list has marked it as a failure
-                    return false;
-                }
-                if(it->heartbeat < heartbeat){
+               if(it->heartbeat < heartbeat){
                     // update in list
                     it->settimestamp(par->getcurrtime());
                     it->setheartbeat(heartbeat);
@@ -446,9 +453,6 @@ bool MP1Node::updateMembershipList(Address addr, long heartbeat){
                 // else no change
                 return false;
             }
-    }
-    if(heartbeat == -1){
-        return false;
     }
     int id; 
     short port;
@@ -479,9 +483,6 @@ void MP1Node::checkForFailures(){
                 #endif
                 it = memberNode->memberList.erase(it);
             } else {
-                if(par->getcurrtime() - it->timestamp > TFAIL){
-                    it->setheartbeat(-1);
-                }
                 it++;
             }
     }
@@ -499,4 +500,14 @@ void MP1Node::printMembershipList(){
             printf("\t%d:%d\t%ld\t%d\n", it->id, it->port, it->heartbeat, it->timestamp);
     }
     printf("\n");
+}
+int MP1Node::countNonFaulty(int timestamp){
+    int count = 0;
+    for(auto it = memberNode->memberList.begin();
+        it != memberNode->memberList.end();
+        it++){
+            if(timestamp - it->timestamp < TFAIL)  
+                count++;
+    }
+    return count;
 }

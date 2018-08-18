@@ -18,8 +18,8 @@
 /**
  * Macros
  */
-#define TREMOVE 20
-#define TFAIL 5
+#define TREMOVE 50
+#define TFAIL 20
 #define TGOSSIP 2
 /*
  * Note: You can change/add any functions in MP1Node.{h,cpp}
@@ -64,6 +64,7 @@ private:
 	bool updateMembershipList(Address addr, long heartbeat);
 	void checkForFailures();
 	void printMembershipList();
+	int countNonFaulty(int timestamp);
 
 public:
 	MP1Node(Member *, Params *, EmulNet *, Log *, Address *);
