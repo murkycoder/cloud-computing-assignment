@@ -315,40 +315,96 @@ void MP1Node::printAddress(Address *addr)
  *
  * DESCRIPTION: 
  */
-bool processJoinReq(char * data);
+bool MP1Node::processJoinReq(char * data){
+
+}
 /**
  * FUNCTION NAME: processJoinRep
  *
  * DESCRIPTION: 
  */
-bool processJoinRep(char * data);
+bool MP1Node::processJoinRep(char * data){
+
+}
 /**
  * FUNCTION NAME: processGossip
  *
  * DESCRIPTION: 
  */
-bool processGossip(char * data);
+bool MP1Node::processGossip(char * data){
+
+}
 /**
  * FUNCTION NAME: gossip
  *
  * DESCRIPTION: 
  */
-bool gossip();
+bool MP1Node::gossip(){
+
+}
 /**
  * FUNCTION NAME: updateMembershipList
  *
- * DESCRIPTION: 
+ * DESCRIPTION: update / add entry in the membership list 
+ *              for received entries that have been marked as failed,
+ *              mark it as failed in your table as well
+ *             
+ * RETURN: return true if modification made
+ *                false otherwise
  */
-bool updateMembershipList(Address addr, long heartbeat);
+bool MP1Node::updateMembershipList(Address addr, long heartbeat){
+    for( auto it = memberNode->memberList.begin();
+        it != memberNode->memberList.end(); it++){
+            int id;
+            short port;
+            memcpy(&id, &(addr.addr[0]), sizeof(int));
+            memcpy(&port, &(addr.addr[4]), sizeof(short));
+            if(id == it->id && port == it->port) {
+                if(heartbeat == -1){
+                    // mark as failed in my own list
+                    it->setheartbeat(-1);
+                }
+                if(it->heartbeat == -1){
+                    // if my own list has marked it as a failure
+                    return false;
+                }
+                if(it->heartbeat < heartbeat){
+                    // update in list
+                    it->settimestamp(par->getcurrtime());
+                    it->setheartbeat(heartbeat);
+                    return true;
+                }
+                // else no change
+                return false;
+            }
+    }
+    if(heartbeat == -1){
+        return false;
+    }
+    int id; 
+    short port;
+    memcpy(&id, &(addr.addr[0]), sizeof(int));
+    memcpy(&port, &(addr.addr[4]), sizeof(short));
+    memberNode->memberList.emplace_back(MemberListEntry(id, port, heartbeat, par->getcurrtime()));
+    #ifdef DEBUGLOG
+        log->logNodeAdd(&(memberNode->addr), &addr);
+    #endif
+
+    return true;
+}
 /**
  * FUNCTION NAME: checkForFailures
  *
  * DESCRIPTION: 
  */
-void checkForFailures();
+void MP1Node::checkForFailures(){
+
+}
 /**
  * FUNCTION NAME: printMembershipList
  *
  * DESCRIPTION: 
  */
-void printMembershipList();
+void MP1Node::printMembershipList(){
+    
+}
