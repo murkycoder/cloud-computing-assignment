@@ -220,7 +220,7 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
     bool processed = false;
     MessageHdr msgHdr;
     memcpy(&msgHdr, data, sizeof(MessageHdr));
-    
+
     char * dataWithoutHdr = data + sizeof(MessageHdr);
 
     switch(msgHdr.msgType){
@@ -237,7 +237,7 @@ bool MP1Node::recvCallBack(void *env, char *data, int size ) {
             break;
     }
     return processed;
-    
+
 }
 
 /**
@@ -309,12 +309,12 @@ void MP1Node::initMemberListTable(Member *memberNode) {
 void MP1Node::printAddress(Address *addr)
 {
     printf("%d.%d.%d.%d:%d \n",  addr->addr[0],addr->addr[1],addr->addr[2],
-                                                       addr->addr[3], *(short*)&addr->addr[4]) ;    
+                                                       addr->addr[3], *(short*)&addr->addr[4]) ;
 }
 /**
  * FUNCTION NAME: processJoinReq
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  */
 bool MP1Node::processJoinReq(char * data){
     Address addr;
@@ -331,7 +331,7 @@ bool MP1Node::processJoinReq(char * data){
     memcpy(msg + sizeof(Address) + sizeof(MessageHdr), &(memberNode->heartbeat), sizeof(long));
 
     emulNet->ENsend(
-        &(memberNode->addr), 
+        &(memberNode->addr),
         &addr,
         msg,
         msgSize
@@ -345,7 +345,7 @@ bool MP1Node::processJoinReq(char * data){
 /**
  * FUNCTION NAME: processJoinRep
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  */
 bool MP1Node::processJoinRep(char * data){
 
@@ -361,7 +361,7 @@ bool MP1Node::processJoinRep(char * data){
 /**
  * FUNCTION NAME: processGossip
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  */
 bool MP1Node::processGossip(char * data){
     int listSize;
@@ -381,7 +381,7 @@ bool MP1Node::processGossip(char * data){
         Address addr;
         memcpy(&(addr.addr[0]), &id, sizeof(int));
         memcpy(&(addr.addr[4]), &port, sizeof(short));
-            
+
         updateMembershipList(addr, heartbeat);
     }
     return true;
@@ -389,12 +389,12 @@ bool MP1Node::processGossip(char * data){
 /**
  * FUNCTION NAME: gossip
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  */
 bool MP1Node::gossip(){
     int timestamp = par->getcurrtime();
     int listSize = countNonFaulty(timestamp);
-    
+
     size_t msgSize = sizeof(MessageHdr) + sizeof(int) +
                      listSize*(sizeof(Address) + sizeof(long));
     char * msg = (char *)malloc(msgSize);
@@ -424,19 +424,19 @@ bool MP1Node::gossip(){
     msgHdr = NULL;
     free(msg);
     return true;
-        
+
 }
 /**
  * FUNCTION NAME: updateMembershipList
  *
- * DESCRIPTION: update / add entry in the membership list 
- *              
- *             
+ * DESCRIPTION: update / add entry in the membership list
+ *
+ *
  * RETURN: return true if modification made
  *                false otherwise
  */
 bool MP1Node::updateMembershipList(Address addr, long heartbeat){
-    printMembershipList();
+    //printMembershipList();
     for( auto it = memberNode->memberList.begin();
         it != memberNode->memberList.end(); it++){
             int id;
@@ -454,7 +454,7 @@ bool MP1Node::updateMembershipList(Address addr, long heartbeat){
                 return false;
             }
     }
-    int id; 
+    int id;
     short port;
     memcpy(&id, &(addr.addr[0]), sizeof(int));
     memcpy(&port, &(addr.addr[4]), sizeof(short));
@@ -468,7 +468,7 @@ bool MP1Node::updateMembershipList(Address addr, long heartbeat){
 /**
  * FUNCTION NAME: checkForFailures
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  */
 void MP1Node::checkForFailures(){
     for(auto it = memberNode->memberList.begin();
@@ -490,10 +490,10 @@ void MP1Node::checkForFailures(){
 /**
  * FUNCTION NAME: printMembershipList
  *
- * DESCRIPTION: 
+ * DESCRIPTION:
  */
 void MP1Node::printMembershipList(){
-    printf("[ %d ] Member list\n");
+    printf("[ %d ] Member list\n", (int *)memberNode->addr.addr[0]);
     for(auto it = memberNode->memberList.begin();
         it != memberNode->memberList.end();
         it++){
@@ -506,7 +506,7 @@ int MP1Node::countNonFaulty(int timestamp){
     for(auto it = memberNode->memberList.begin();
         it != memberNode->memberList.end();
         it++){
-            if(timestamp - it->timestamp < TFAIL)  
+            if(timestamp - it->timestamp < TFAIL)
                 count++;
     }
     return count;
